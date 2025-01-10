@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/kurtosis-tech/kurtosis/engine/server/engine/centralized_logs"
 	"net/http"
+
+	"github.com/kurtosis-tech/kurtosis/engine/server/engine/centralized_logs"
 
 	"github.com/kurtosis-tech/kurtosis/engine/server/engine/enclave_manager"
 	"github.com/kurtosis-tech/kurtosis/engine/server/engine/mapping/to_http"
