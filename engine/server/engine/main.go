@@ -8,6 +8,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"math"
+	"net"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/kurtosis/api/golang/core/kurtosis_core_rpc_api_bindings"
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/kurtosis_engine_rpc_api_bindings/kurtosis_engine_rpc_api_bindingsconnect"
 	enclaveApi "github.com/kurtosis-tech/kurtosis/api/golang/http_rest/server/core_rest_api"
@@ -46,17 +58,6 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
-	"io/fs"
-	"math"
-	"net"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"time"
 )
 
 const (
@@ -497,7 +498,7 @@ func restApiServer(
 	loggingApi.RegisterHandlers(echoApiRouter, webSocketRuntime)
 
 	// ============================== Engine Management API ======================================
-	enclaveRuntime, err := restApi.NewEnclaveRuntime(ctx, *enclave_manager, asyncStarlarkLogs, false)
+	enclaveRuntime, err := restApi.NewEnclaveRuntime(ctx, *enclave_manager, asyncStarlarkLogs, serverArgs.KurtosisBackendType, false)
 	if err != nil {
 		newErr := stacktrace.Propagate(err, "Failed to initialize %T", enclaveRuntime)
 		return newErr

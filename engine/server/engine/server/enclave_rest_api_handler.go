@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/kurtosis-tech/kurtosis/engine/launcher/args"
 	"github.com/kurtosis-tech/kurtosis/engine/server/engine/enclave_manager"
 	"github.com/kurtosis-tech/kurtosis/engine/server/engine/mapping/to_grpc"
 	"github.com/kurtosis-tech/kurtosis/engine/server/engine/mapping/to_http"
@@ -37,9 +38,10 @@ type enclaveRuntime struct {
 	ctx                      context.Context
 	lock                     sync.Mutex
 	asyncStarlarkLogs        streaming.StreamerPool[*rpc_api.StarlarkRunResponseLine]
+	kurtosisBackendType      args.KurtosisBackendType
 }
 
-func NewEnclaveRuntime(ctx context.Context, manager enclave_manager.EnclaveManager, asyncStarlarkLogs streaming.StreamerPool[*rpc_api.StarlarkRunResponseLine], connectOnHostMachine bool) (*enclaveRuntime, error) {
+func NewEnclaveRuntime(ctx context.Context, manager enclave_manager.EnclaveManager, asyncStarlarkLogs streaming.StreamerPool[*rpc_api.StarlarkRunResponseLine], kurtosisBackendType args.KurtosisBackendType, connectOnHostMachine bool) (*enclaveRuntime, error) {
 
 	runtime := enclaveRuntime{
 		enclaveManager:           manager,
@@ -47,6 +49,7 @@ func NewEnclaveRuntime(ctx context.Context, manager enclave_manager.EnclaveManag
 		connectOnHostMachine:     connectOnHostMachine,
 		ctx:                      ctx,
 		asyncStarlarkLogs:        asyncStarlarkLogs,
+		kurtosisBackendType:      kurtosisBackendType,
 		lock:                     sync.Mutex{},
 	}
 
@@ -716,14 +719,20 @@ func (manager *enclaveRuntime) PostEnclavesEnclaveIdentifierStarlarkScripts(ctx 
 
 // GetGrpcClientConn returns a client conn dialed in to the local port
 // It is the caller's responsibility to call resultClientConn.close()
-func getGrpcClientConn(enclaveInfo types.EnclaveInfo, connectOnHostMachine bool) (resultClientConn *grpc.ClientConn, resultErr error) {
+func getGrpcClientConn(enclaveInfo types.EnclaveInfo, kurtosisBackendType args.KurtosisBackendType, connectOnHostMachine bool) (resultClientConn *grpc.ClientConn, resultErr error) {
 	enclaveAPIContainerInfo := enclaveInfo.ApiContainerInfo
 	if enclaveAPIContainerInfo == nil {
 		logrus.Infof("No API container info is available for enclave %s", enclaveInfo.EnclaveUuid)
 		return nil, nil
 	}
 	apiContainerGrpcPort := enclaveAPIContainerInfo.GrpcPortInsideEnclave
-	apiContainerIP := enclaveAPIContainerInfo.IpInsideEnclave
+
+	var apiContainerIP string
+	if kurtosisBackendType == args.KurtosisBackendType_Kubernetes {
+		apiContainerIP = enclaveAPIContainerInfo.IpInsideEnclave
+	} else {
+		apiContainerIP = enclaveAPIContainerInfo.BridgeIpAddress
+	}
 
 	enclaveAPIContainerHostMachineInfo := enclaveInfo.ApiContainerHostMachineInfo
 	if connectOnHostMachine && enclaveAPIContainerHostMachineInfo == nil {
@@ -798,7 +807,7 @@ func (runtime *enclaveRuntime) refreshEnclaveConnections() error {
 	for uuid, info := range enclaves {
 		_, found := runtime.remoteApiContainerClient[uuid]
 		if !found && info != nil {
-			conn, err := getGrpcClientConn(*info, runtime.connectOnHostMachine)
+			conn, err := getGrpcClientConn(*info, runtime.kurtosisBackendType, runtime.connectOnHostMachine)
 			if err != nil {
 				return stacktrace.Propagate(err, "Failed to establish gRPC connection with enclave manager service on enclave %s", uuid)
 			}
