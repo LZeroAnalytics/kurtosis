@@ -723,7 +723,7 @@ func getGrpcClientConn(enclaveInfo types.EnclaveInfo, connectOnHostMachine bool)
 		return nil, nil
 	}
 	apiContainerGrpcPort := enclaveAPIContainerInfo.GrpcPortInsideEnclave
-	apiContainerIP := enclaveAPIContainerInfo.BridgeIpAddress
+	apiContainerIP := enclaveAPIContainerInfo.IpInsideEnclave
 
 	enclaveAPIContainerHostMachineInfo := enclaveInfo.ApiContainerHostMachineInfo
 	if connectOnHostMachine && enclaveAPIContainerHostMachineInfo == nil {
