@@ -3,6 +3,8 @@ package kubernetes_kurtosis_backend
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"net"
 	"time"
 
@@ -221,6 +223,37 @@ func (backend *KubernetesKurtosisBackend) CreateAPIContainer(
 			}
 		}
 	}()
+
+	shouldRemovePodIdentityAssoc := false
+	if backend.clusterName != "" && backend.apiContainerRoleArn != "" {
+		createPodIdentityAssocInput := &eks.CreatePodIdentityAssociationInput{
+			Namespace:      aws.String(enclaveNamespaceName),
+			ServiceAccount: aws.String(apiContainerServiceAccountName),
+			ClusterName:    aws.String(backend.clusterName),
+			RoleArn:        aws.String(backend.apiContainerRoleArn),
+		}
+
+		association, err := backend.eksClient.CreatePodIdentityAssociation(ctx, createPodIdentityAssocInput)
+
+		if err != nil {
+			errMsg := fmt.Sprintf("An error occurred creating EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
+			logrus.Errorf("%s. Error was:\n%s", errMsg, err)
+			return nil, stacktrace.Propagate(err, errMsg)
+		}
+
+		shouldRemovePodIdentityAssoc = true
+		defer func() {
+			if shouldRemovePodIdentityAssoc {
+				deletePodIdentityAssocInput := &eks.DeletePodIdentityAssociationInput{
+					AssociationId: association.Association.AssociationId,
+				}
+				if _, err := backend.eksClient.DeletePodIdentityAssociation(ctx, deletePodIdentityAssocInput); err != nil {
+					logrus.Errorf("Creating the API container didn't complete successfully, so we tried to delete EKS pod identity association '%v' that we created but an error was thrown:\n%v", association.Association.AssociationId, err)
+					logrus.Errorf("ACTION REQUIRED: You'll need to manually remove EKS pod identity association '%v'!!!!!!!", association.Association.AssociationId)
+				}
+			}
+		}()
+	}
 
 	//Create the cluster role
 	clusterRolesAttributes, err := apiContainerAttributesProvider.ForApiContainerClusterRole()
@@ -543,6 +576,7 @@ func (backend *KubernetesKurtosisBackend) CreateAPIContainer(
 	shouldRemovePod = false
 	shouldRemoveService = false
 	shouldDeleteVolumeClaim = false
+	shouldRemovePodIdentityAssoc = false
 	return resultApiContainer, nil
 }
 

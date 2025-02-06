@@ -6,5 +6,7 @@
 package kurtosis_backend_config
 
 type KubernetesBackendConfig struct {
-	StorageClass string
+	StorageClass        string
+	ClusterName         string
+	ApiContainerRoleArn string
 }

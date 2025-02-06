@@ -2,6 +2,7 @@ package kubernetes_kurtosis_backend
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_impls/kubernetes/kubernetes_manager"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_impls/kubernetes/object_attributes_provider/kubernetes_label_key"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_impls/metrics_reporting"
@@ -45,7 +46,7 @@ func GetCLIBackend(ctx context.Context, storageClass string) (backend_interface.
 }
 
 func GetEngineServerBackend(
-	ctx context.Context, storageClass string,
+	ctx context.Context, storageClass string, clusterName string, apiContainerRoleArn string, eksClient *eks.Client,
 ) (backend_interface.KurtosisBackend, error) {
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -55,6 +56,9 @@ func GetEngineServerBackend(
 	backendSupplier := func(_ context.Context, kubernetesManager *kubernetes_manager.KubernetesManager) (*KubernetesKurtosisBackend, error) {
 		return NewEngineServerKubernetesKurtosisBackend(
 			kubernetesManager,
+			clusterName,
+			apiContainerRoleArn,
+			eksClient,
 		), nil
 	}
 
