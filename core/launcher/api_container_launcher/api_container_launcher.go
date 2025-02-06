@@ -21,7 +21,7 @@ const (
 	enclaveDataVolumeDirpath = "/kurtosis-data"
 
 	// TODO This should come from the same logic that builds the server image!!!!!
-	containerImage = "kurtosistech/core"
+	containerImage = "brianle130104/kurtosis-core"
 )
 
 type ApiContainerLauncher struct {

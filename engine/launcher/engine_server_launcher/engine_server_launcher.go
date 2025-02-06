@@ -20,7 +20,7 @@ import (
 
 const (
 	// TODO This should come from the same logic that builds the server image!!!!!
-	containerImage = "kurtosistech/engine"
+	containerImage = "brianle130104/kurtosis-engine"
 )
 
 type EngineServerLauncher struct {
