@@ -61,6 +61,7 @@ type APIContainerArgs struct {
 var skipValidation = map[string]bool{
 	"cloud_instance_id": true,
 	"cloud_user_id":     true,
+	"sqsQueueUrl":       true,
 }
 
 func (args *APIContainerArgs) UnmarshalJSON(data []byte) error {
