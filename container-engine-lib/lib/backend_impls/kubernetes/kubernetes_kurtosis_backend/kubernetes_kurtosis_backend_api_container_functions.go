@@ -277,8 +277,8 @@ func (backend *KubernetesKurtosisBackend) CreateAPIContainer(
 					AssociationId: aws.String(associationId),
 				}
 				if _, err := backend.eksClient.DeletePodIdentityAssociation(ctx, deletePodIdentityAssocInput); err != nil {
-					logrus.Errorf("Creating the API container didn't complete successfully, so we tried to delete EKS pod identity association '%v' that we created but an error was thrown:\n%v", association.Association.AssociationId, err)
-					logrus.Errorf("ACTION REQUIRED: You'll need to manually remove EKS pod identity association '%v'!!!!!!!", association.Association.AssociationId)
+					logrus.Errorf("Creating the API container didn't complete successfully, so we tried to delete EKS pod identity association '%v' that we created but an error was thrown:\n%v", associationId, err)
+					logrus.Errorf("ACTION REQUIRED: You'll need to manually remove EKS pod identity association '%v'!!!!!!!", associationId)
 				}
 			}
 		}()
