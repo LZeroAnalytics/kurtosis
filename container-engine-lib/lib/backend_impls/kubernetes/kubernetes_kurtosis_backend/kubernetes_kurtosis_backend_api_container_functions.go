@@ -246,7 +246,7 @@ func (backend *KubernetesKurtosisBackend) CreateAPIContainer(
 				return nil, stacktrace.Propagate(err, errMsg)
 			}
 
-			logrus.Infof("Service account %s in namespace %s already had an managed association, skipping")
+			logrus.Infof("Service account %s in namespace %s already had an managed association, skipping", apiContainerServiceAccountName, enclaveNamespaceName)
 		} else {
 			if association.Association == nil || association.Association.AssociationId == nil {
 				errMsg := fmt.Sprintf("EKS returned malformed response when creating EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
