@@ -226,7 +226,11 @@ func (backend *KubernetesKurtosisBackend) CreateAPIContainer(
 
 	shouldRemovePodIdentityAssoc := false
 	if backend.clusterName != "" && backend.apiContainerRoleArn != "" {
-		listPodIdentityAssocInput := &eks.ListPodIdentityAssociationsInput{}
+		listPodIdentityAssocInput := &eks.ListPodIdentityAssociationsInput{
+			ClusterName:    aws.String(backend.clusterName),
+			Namespace:      aws.String(enclaveNamespaceName),
+			ServiceAccount: aws.String(apiContainerServiceAccountName),
+		}
 
 		associations, err := backend.eksClient.ListPodIdentityAssociations(ctx, listPodIdentityAssocInput)
 		if err != nil {
