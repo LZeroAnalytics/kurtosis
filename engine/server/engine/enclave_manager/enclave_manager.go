@@ -75,8 +75,6 @@ type EnclaveManager struct {
 	isCI                        bool
 	cloudUserID                 metrics_client.CloudUserID
 	cloudInstanceID             metrics_client.CloudInstanceID
-
-	sqsQueueUrl string
 }
 
 func CreateEnclaveManager(
@@ -92,7 +90,6 @@ func CreateEnclaveManager(
 	isCI bool,
 	cloudUserID metrics_client.CloudUserID,
 	cloudInstanceID metrics_client.CloudInstanceID,
-	sqsQueueUrl string,
 ) (*EnclaveManager, error) {
 	enclaveCreator := newEnclaveCreator(kurtosisBackend, apiContainerKurtosisBackendConfigSupplier)
 
@@ -103,7 +100,7 @@ func CreateEnclaveManager(
 
 	// The enclave pool feature is only available for Kubernetes so far
 	if kurtosisBackendType == args.KurtosisBackendType_Kubernetes {
-		enclavePool, err = CreateEnclavePool(kurtosisBackend, enclaveCreator, poolSize, engineVersion, enclaveEnvVars, metricsUserID, didUserAcceptSendingMetrics, isCI, cloudUserID, cloudInstanceID, sqsQueueUrl)
+		enclavePool, err = CreateEnclavePool(kurtosisBackend, enclaveCreator, poolSize, engineVersion, enclaveEnvVars, metricsUserID, didUserAcceptSendingMetrics, isCI, cloudUserID, cloudInstanceID)
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred creating enclave pool with pool-size '%v' and engine version '%v'", poolSize, engineVersion)
 		}
@@ -124,7 +121,6 @@ func CreateEnclaveManager(
 		isCI:                                      isCI,
 		cloudUserID:                               cloudUserID,
 		cloudInstanceID:                           cloudInstanceID,
-		sqsQueueUrl:                               sqsQueueUrl,
 	}
 
 	return enclaveManager, nil
@@ -201,7 +197,6 @@ func (manager *EnclaveManager) CreateEnclave(
 			manager.cloudInstanceID,
 			manager.kurtosisBackendType,
 			shouldAPICRunInDebugMode,
-			manager.sqsQueueUrl,
 		)
 		if err != nil {
 			return nil, stacktrace.Propagate(
@@ -442,7 +437,6 @@ func (manager *EnclaveManager) RestartAllEnclaveAPIContainers(ctx context.Contex
 			manager.cloudUserID,
 			manager.cloudInstanceID,
 			noDebugMode,
-			manager.sqsQueueUrl,
 		)
 		if err != nil {
 			return stacktrace.Propagate(err, "An error occurred launching the API container")

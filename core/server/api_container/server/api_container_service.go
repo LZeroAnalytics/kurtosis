@@ -11,11 +11,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/kurtosis-tech/kurtosis/core/launcher/args"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine/docker_compose_transpiler"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine/enclave_structure"
@@ -105,10 +101,6 @@ type ApiContainerService struct {
 	metricsClient metrics_client.MetricsClient
 
 	githubAuthProvider *git_package_content_provider.GitHubPackageAuthProvider
-
-	serverArgs *args.APIContainerArgs
-
-	sqsClient *sqs.Client
 }
 
 func NewApiContainerService(
@@ -121,8 +113,6 @@ func NewApiContainerService(
 	metricsClient metrics_client.MetricsClient,
 	githubAuthProvider *git_package_content_provider.GitHubPackageAuthProvider,
 	starlarkRunRepository *starlark_run.StarlarkRunRepository,
-	serverArgs *args.APIContainerArgs,
-	sqsClient *sqs.Client,
 ) (*ApiContainerService, error) {
 
 	if err := initStarlarkRun(starlarkRunRepository, restartPolicy); err != nil {
@@ -138,8 +128,6 @@ func NewApiContainerService(
 		starlarkRunRepository:  starlarkRunRepository,
 		metricsClient:          metricsClient,
 		githubAuthProvider:     githubAuthProvider,
-		serverArgs:             serverArgs,
-		sqsClient:              sqsClient,
 	}
 
 	return service, nil
@@ -1026,29 +1014,6 @@ func (apicService *ApiContainerService) runStarlark(
 				}
 
 				isSuccessful := runFinishedEvent.GetIsRunSuccessful()
-
-				if apicService.serverArgs.SqsQueueUrl != "" {
-					messageBytes, err := json.Marshal(map[string]interface{}{
-						"enclaveId":    apicService.serverArgs.EnclaveUUID,
-						"type":         QueueMessageTypeExecutionResult,
-						"isSuccessful": isSuccessful,
-					})
-
-					if err != nil {
-						logrus.Errorf("An error marshaling SQS message body %s", apicService.serverArgs.SqsQueueUrl)
-					} else {
-						sendMessageInput := &sqs.SendMessageInput{
-							QueueUrl:       aws.String(apicService.serverArgs.SqsQueueUrl),
-							MessageBody:    aws.String(string(messageBytes)),
-							MessageGroupId: aws.String(fmt.Sprintf("ExecutionResult/%s", apicService.serverArgs.EnclaveUUID)),
-						}
-
-						if _, err := apicService.sqsClient.SendMessage(context.TODO(), sendMessageInput); err != nil {
-							logrus.Errorf("An error occurred writing to execution result to queue %s", apicService.serverArgs.SqsQueueUrl)
-						}
-					}
-				}
-
 				numberOfServicesAfterRunFinished := 0
 				if serviceNames, err := apicService.serviceNetwork.GetServiceNames(); err != nil {
 					logrus.Warn("Couldn't figure out the number of services after run finished, will be logging 0 in the metrics")

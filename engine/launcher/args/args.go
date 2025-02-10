@@ -69,7 +69,6 @@ type EngineServerArgs struct {
 	Domain string `json:"domain"`
 
 	LogRetentionPeriod string `json:"logRetentionPeriod"`
-	SqsQueueUrl        string `json:"sqsQueueUrl"`
 }
 
 var skipValidation = map[string]bool{

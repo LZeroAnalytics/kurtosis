@@ -3,8 +3,6 @@ package kubernetes_kurtosis_backend
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_impls/kubernetes/object_attributes_provider/kubernetes_label_key"
 	"strings"
 	"time"
@@ -83,83 +81,6 @@ func (backend *KubernetesKurtosisBackend) CreateEnclave(
 	enclaveNamespaceLabels := shared_helpers.GetStringMapFromLabelMap(enclaveNamespaceAttrs.GetLabels())
 	enclaveAnnotationsStrs := shared_helpers.GetStringMapFromAnnotationMap(enclaveNamespaceAttrs.GetAnnotations())
 
-	// Create EKS pod identity association for API container
-	// We do it here because we will remove it as part of the enclave
-
-	apiContainerAttributesProvider := enclaveObjAttrsProvider.ForApiContainer()
-	serviceAccountAttributes, err := apiContainerAttributesProvider.ForApiContainerServiceAccount()
-	if err != nil {
-		return nil, stacktrace.Propagate(
-			err,
-			"Expected to be able to get API container attributes for a Kubernetes service account, "+
-				"instead got a non-nil error",
-		)
-	}
-
-	apiContainerServiceAccountName := serviceAccountAttributes.GetName().GetString()
-	shouldRemovePodIdentityAssoc := false
-	if backend.clusterName != "" && backend.apiContainerRoleArn != "" {
-		listPodIdentityAssocInput := &eks.ListPodIdentityAssociationsInput{
-			ClusterName:    aws.String(backend.clusterName),
-			Namespace:      aws.String(enclaveNamespaceName),
-			ServiceAccount: aws.String(apiContainerServiceAccountName),
-		}
-
-		associations, err := backend.eksClient.ListPodIdentityAssociations(ctx, listPodIdentityAssocInput)
-		if err != nil {
-			errMsg := fmt.Sprintf("An error occurred listing EKS pod identity associations for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
-			logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-			return nil, stacktrace.Propagate(err, errMsg)
-		}
-
-		var associationId string
-
-		if len(associations.Associations) == 0 {
-			createPodIdentityAssocInput := &eks.CreatePodIdentityAssociationInput{
-				Namespace:      aws.String(enclaveNamespaceName),
-				ServiceAccount: aws.String(apiContainerServiceAccountName),
-				ClusterName:    aws.String(backend.clusterName),
-				RoleArn:        aws.String(backend.apiContainerRoleArn),
-			}
-
-			association, err := backend.eksClient.CreatePodIdentityAssociation(ctx, createPodIdentityAssocInput)
-			if err != nil {
-				errMsg := fmt.Sprintf("An error occurred creating EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
-				logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-				return nil, stacktrace.Propagate(err, errMsg)
-			}
-
-			if association.Association == nil || association.Association.AssociationId == nil {
-				errMsg := fmt.Sprintf("EKS returned malformed response when creating EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
-				logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-				return nil, stacktrace.Propagate(err, errMsg)
-			}
-
-			associationId = *association.Association.AssociationId
-		} else {
-			if associations.Associations[0].AssociationId == nil {
-				errMsg := fmt.Sprintf("EKS returned malformed response when creating EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, enclaveNamespaceName)
-				logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-				return nil, stacktrace.Propagate(err, errMsg)
-			}
-
-			associationId = *associations.Associations[0].AssociationId
-		}
-
-		shouldRemovePodIdentityAssoc = true
-		defer func() {
-			if shouldRemovePodIdentityAssoc {
-				deletePodIdentityAssocInput := &eks.DeletePodIdentityAssociationInput{
-					AssociationId: aws.String(associationId),
-				}
-				if _, err := backend.eksClient.DeletePodIdentityAssociation(teardownContext, deletePodIdentityAssocInput); err != nil {
-					logrus.Errorf("Creating the API container didn't complete successfully, so we tried to delete EKS pod identity association '%v' that we created but an error was thrown:\n%v", associationId, err)
-					logrus.Errorf("ACTION REQUIRED: You'll need to manually remove EKS pod identity association '%v'!!!!!!!", associationId)
-				}
-			}
-		}()
-	}
-
 	enclaveNamespace, err := backend.kubernetesManager.CreateNamespace(ctx, enclaveNamespaceName, enclaveNamespaceLabels, enclaveAnnotationsStrs)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "Failed to create namespace with name '%v' for enclave '%v'", enclaveNamespaceName, enclaveUuid)
@@ -193,7 +114,6 @@ func (backend *KubernetesKurtosisBackend) CreateEnclave(
 	}
 
 	shouldDeleteNamespace = false
-	shouldRemovePodIdentityAssoc = false
 	return resultEnclave, nil
 }
 
@@ -373,54 +293,6 @@ func (backend *KubernetesKurtosisBackend) DestroyEnclaves(
 					enclaveId,
 				)
 				continue
-			}
-
-			// Remove eks pod identity association
-
-			// Create EKS pod identity association for API container
-			// We do it here because we will remove it as part of the enclave
-
-			enclaveObjAttrsProvider := backend.objAttrsProvider.ForEnclave(enclaveId)
-			apiContainerAttributesProvider := enclaveObjAttrsProvider.ForApiContainer()
-			serviceAccountAttributes, err := apiContainerAttributesProvider.ForApiContainerServiceAccount()
-			if err != nil {
-				erroredEnclaveIds[enclaveId] = stacktrace.Propagate(
-					err,
-					"Expected to be able to get API container attributes for a Kubernetes service account, "+
-						"instead got a non-nil error",
-				)
-				continue
-			}
-
-			apiContainerServiceAccountName := serviceAccountAttributes.GetName().GetString()
-			if backend.clusterName != "" && backend.apiContainerRoleArn != "" {
-				listPodIdentityAssocInput := &eks.ListPodIdentityAssociationsInput{
-					ClusterName:    aws.String(backend.clusterName),
-					Namespace:      aws.String(namespaceName),
-					ServiceAccount: aws.String(apiContainerServiceAccountName),
-				}
-
-				associations, err := backend.eksClient.ListPodIdentityAssociations(ctx, listPodIdentityAssocInput)
-				if err != nil {
-					errMsg := fmt.Sprintf("An error occurred listing EKS pod identity associations for service account %s in namespace %s", apiContainerServiceAccountName, namespaceName)
-					logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-					erroredEnclaveIds[enclaveId] = stacktrace.Propagate(err, errMsg)
-					continue
-				}
-
-				if len(associations.Associations) > 0 && associations.Associations[0].AssociationId != nil {
-					deletePodIdentityAssocInput := &eks.DeletePodIdentityAssociationInput{
-						ClusterName:   aws.String(backend.clusterName),
-						AssociationId: associations.Associations[0].AssociationId,
-					}
-
-					if _, err := backend.eksClient.DeletePodIdentityAssociation(ctx, deletePodIdentityAssocInput); err != nil {
-						errMsg := fmt.Sprintf("An error occurred deleting EKS pod identity association for service account %s in namespace %s", apiContainerServiceAccountName, namespaceName)
-						logrus.Errorf("%s. Error was:\n%s", errMsg, err)
-						erroredEnclaveIds[enclaveId] = stacktrace.Propagate(err, errMsg)
-						continue
-					}
-				}
 			}
 		}
 

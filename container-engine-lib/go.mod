@@ -1,6 +1,6 @@
 module github.com/kurtosis-tech/kurtosis/container-engine-lib
 
-go 1.21
+go 1.20
 
 replace github.com/kurtosis-tech/kurtosis/path-compression => ./../path-compression
 

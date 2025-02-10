@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_interface/objects/image_build_spec"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_interface/objects/image_registry_spec"
 	"github.com/kurtosis-tech/kurtosis/container-engine-lib/lib/backend_interface/objects/nix_build_spec"
@@ -49,10 +48,6 @@ type KubernetesKurtosisBackend struct {
 
 	// Whether services should be restarted
 	productionMode bool
-
-	eksClient           *eks.Client
-	clusterName         string
-	apiContainerRoleArn string
 }
 
 func (backend *KubernetesKurtosisBackend) DumpKurtosis(ctx context.Context, outputDirpath string) error {
@@ -67,9 +62,6 @@ func newKubernetesKurtosisBackend(
 	engineServerModeArgs *shared_helpers.EngineServerModeArgs,
 	apiContainerModeArgs *shared_helpers.ApiContainerModeArgs,
 	productionMoe bool,
-	clusterName string,
-	apiContainerRoleArn string,
-	eksClient *eks.Client,
 ) *KubernetesKurtosisBackend {
 	objAttrsProvider := object_attributes_provider.GetKubernetesObjectAttributesProvider()
 	return &KubernetesKurtosisBackend{
@@ -79,9 +71,6 @@ func newKubernetesKurtosisBackend(
 		engineServerModeArgs: engineServerModeArgs,
 		apiContainerModeArgs: apiContainerModeArgs,
 		productionMode:       productionMoe,
-		eksClient:            eksClient,
-		clusterName:          clusterName,
-		apiContainerRoleArn:  apiContainerRoleArn,
 	}
 }
 
@@ -99,17 +88,11 @@ func NewAPIContainerKubernetesKurtosisBackend(
 		nil,
 		modeArgs,
 		productionMode,
-		"",
-		"",
-		nil,
 	)
 }
 
 func NewEngineServerKubernetesKurtosisBackend(
 	kubernetesManager *kubernetes_manager.KubernetesManager,
-	clusterName string,
-	apiContainerRoleArn string,
-	eksClient *eks.Client,
 ) *KubernetesKurtosisBackend {
 	modeArgs := &shared_helpers.EngineServerModeArgs{}
 	return newKubernetesKurtosisBackend(
@@ -118,9 +101,6 @@ func NewEngineServerKubernetesKurtosisBackend(
 		modeArgs,
 		nil,
 		noProductionMode,
-		clusterName,
-		apiContainerRoleArn,
-		eksClient,
 	)
 }
 
@@ -134,9 +114,6 @@ func NewCLIModeKubernetesKurtosisBackend(
 		nil,
 		nil,
 		noProductionMode,
-		"",
-		"",
-		nil,
 	)
 }
 

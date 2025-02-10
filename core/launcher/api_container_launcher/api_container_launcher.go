@@ -21,7 +21,7 @@ const (
 	enclaveDataVolumeDirpath = "/kurtosis-data"
 
 	// TODO This should come from the same logic that builds the server image!!!!!
-	containerImage = "brianle130104/kurtosis-core"
+	containerImage = "kurtosistech/core"
 )
 
 type ApiContainerLauncher struct {
@@ -46,7 +46,6 @@ func (launcher ApiContainerLauncher) LaunchWithDefaultVersion(
 	cloudUserID metrics_client.CloudUserID,
 	cloudInstanceID metrics_client.CloudInstanceID,
 	shouldStartInDebugMode bool,
-	sqsQueueUrl string,
 ) (
 	resultApiContainer *api_container.APIContainer,
 	resultErr error,
@@ -66,7 +65,6 @@ func (launcher ApiContainerLauncher) LaunchWithDefaultVersion(
 		cloudUserID,
 		cloudInstanceID,
 		shouldStartInDebugMode,
-		sqsQueueUrl,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the API container with default version tag '%v'", kurtosis_version.KurtosisVersion)
@@ -89,7 +87,6 @@ func (launcher ApiContainerLauncher) LaunchWithCustomVersion(
 	cloudUserID metrics_client.CloudUserID,
 	cloudInstanceID metrics_client.CloudInstanceID,
 	shouldStartInDebugMode bool,
-	sqsQueueUrl string,
 ) (
 	resultApiContainer *api_container.APIContainer,
 	resultErr error,
@@ -110,7 +107,6 @@ func (launcher ApiContainerLauncher) LaunchWithCustomVersion(
 		isCI,
 		cloudUserID,
 		cloudInstanceID,
-		sqsQueueUrl,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred creating the API container args")

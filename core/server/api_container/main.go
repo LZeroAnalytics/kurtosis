@@ -8,8 +8,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine/interpretation_time_value_store"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine/starlark_run"
 	"github.com/kurtosis-tech/kurtosis/core/server/api_container/server/startosis_engine/startosis_packages/git_package_content_provider"
@@ -239,14 +237,6 @@ func runMain() error {
 	if serverArgs.IsProductionEnclave {
 		restartPolicy = kurtosis_core_rpc_api_bindings.RestartPolicy_ALWAYS
 	}
-
-	awscfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed to load SDK config")
-	}
-
-	sqsClient := sqs.NewFromConfig(awscfg)
-
 	apiContainerService, err := server.NewApiContainerService(
 		filesArtifactStore,
 		serviceNetwork,
@@ -257,8 +247,6 @@ func runMain() error {
 		metricsClient,
 		githubAuthProvider,
 		starlarkRunRepository,
-		serverArgs,
-		sqsClient,
 	)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred creating the API container service")

@@ -39,7 +39,6 @@ type EnclavePool struct {
 	isCI                        bool
 	cloudUserID                 metrics_client.CloudUserID
 	cloudInstanceID             metrics_client.CloudInstanceID
-	sqsQueueUrl                 string
 }
 
 // CreateEnclavePool will do the following:
@@ -59,7 +58,6 @@ func CreateEnclavePool(
 	isCI bool,
 	cloudUserID metrics_client.CloudUserID,
 	cloudInstanceID metrics_client.CloudInstanceID,
-	sqsQueueUrl string,
 ) (*EnclavePool, error) {
 
 	//TODO the current implementation only removes the previous idle enclave, it's pending to implement the reusable feature
@@ -107,7 +105,6 @@ func CreateEnclavePool(
 		isCI:                        isCI,
 		cloudUserID:                 cloudUserID,
 		cloudInstanceID:             cloudInstanceID,
-		sqsQueueUrl:                 sqsQueueUrl,
 	}
 
 	go enclavePool.run(ctxWithCancel)
@@ -298,7 +295,6 @@ func (pool *EnclavePool) createNewIdleEnclave(ctx context.Context) (*types.Encla
 		pool.cloudInstanceID,
 		args.KurtosisBackendType_Kubernetes, // enclave pool only available for k8s
 		defaultApicDebugModeForEnclavesInThePool,
-		pool.sqsQueueUrl,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(

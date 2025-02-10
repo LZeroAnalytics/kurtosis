@@ -559,7 +559,7 @@ func (manager *KubernetesManager) GetNamespace(ctx context.Context, name string)
 	}
 	deletionTimestamp := namespace.GetObjectMeta().GetDeletionTimestamp()
 	if deletionTimestamp != nil {
-		return nil, stacktrace.NewError("Namespace with name '%s' has been marked for deletion", namespace)
+		return nil, stacktrace.Propagate(err, "Namespace with name '%s' has been marked for deletion", namespace)
 	}
 	return namespace, nil
 }

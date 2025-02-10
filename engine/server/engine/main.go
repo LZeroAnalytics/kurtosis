@@ -8,8 +8,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"io/fs"
 	"math"
 	"net"
@@ -175,16 +173,7 @@ func runMain() error {
 		}
 	}
 
-	// Setup EKS client
-
-	awscfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed to load SDK config")
-	}
-
-	eksClient := eks.NewFromConfig(awscfg)
-
-	kurtosisBackend, err := getKurtosisBackend(ctx, serverArgs.KurtosisBackendType, backendConfig, remoteBackendConfigMaybe, eksClient)
+	kurtosisBackend, err := getKurtosisBackend(ctx, serverArgs.KurtosisBackendType, backendConfig, remoteBackendConfigMaybe)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred getting the Kurtosis backend for backend type '%v' and config '%+v'", serverArgs.KurtosisBackendType, backendConfig)
 	}
@@ -208,9 +197,7 @@ func runMain() error {
 		serverArgs.IsCI,
 		serverArgs.CloudUserID,
 		serverArgs.CloudInstanceID,
-		serverArgs.KurtosisLocalBackendConfig,
-		serverArgs.SqsQueueUrl,
-	)
+		serverArgs.KurtosisLocalBackendConfig)
 	if err != nil {
 		return stacktrace.Propagate(err, "Failed to create an enclave manager for backend type '%v' and config '%+v'", serverArgs.KurtosisBackendType, backendConfig)
 	}
@@ -351,7 +338,6 @@ func getEnclaveManager(
 	cloudUserId metrics_client.CloudUserID,
 	cloudInstanceId metrics_client.CloudInstanceID,
 	kurtosisLocalBackendConfig interface{},
-	sqsQueueUrl string,
 ) (*enclave_manager.EnclaveManager, error) {
 	var apiContainerKurtosisBackendConfigSupplier api_container_launcher.KurtosisBackendConfigSupplier
 	switch kurtosisBackendType {
@@ -380,7 +366,6 @@ func getEnclaveManager(
 		isCI,
 		cloudUserId,
 		cloudInstanceId,
-		sqsQueueUrl,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred creating enclave manager for backend type '%+v' using pool-size '%v' and engine version '%v'", kurtosisBackendType, poolSize, engineVersion)
@@ -389,7 +374,7 @@ func getEnclaveManager(
 	return enclaveManager, nil
 }
 
-func getKurtosisBackend(ctx context.Context, kurtosisBackendType args.KurtosisBackendType, backendConfig interface{}, remoteBackendConfigMaybe *configs.KurtosisRemoteBackendConfig, eksClient *eks.Client) (backend_interface.KurtosisBackend, error) {
+func getKurtosisBackend(ctx context.Context, kurtosisBackendType args.KurtosisBackendType, backendConfig interface{}, remoteBackendConfigMaybe *configs.KurtosisRemoteBackendConfig) (backend_interface.KurtosisBackend, error) {
 	var kurtosisBackend backend_interface.KurtosisBackend
 	var err error
 	switch kurtosisBackendType {
@@ -409,7 +394,7 @@ func getKurtosisBackend(ctx context.Context, kurtosisBackendType args.KurtosisBa
 		if !ok {
 			return nil, stacktrace.NewError("Failed to cast cluster configuration interface to the appropriate type, even though Kurtosis backend type is '%v'", args.KurtosisBackendType_Kubernetes.String())
 		}
-		kurtosisBackend, err = kubernetes_kurtosis_backend.GetEngineServerBackend(ctx, clusterConfigK8s.StorageClass, clusterConfigK8s.ClusterName, clusterConfigK8s.ApiContainerRoleArn, eksClient)
+		kurtosisBackend, err = kubernetes_kurtosis_backend.GetEngineServerBackend(ctx, clusterConfigK8s.StorageClass)
 		if err != nil {
 			return nil, stacktrace.Propagate(
 				err,
