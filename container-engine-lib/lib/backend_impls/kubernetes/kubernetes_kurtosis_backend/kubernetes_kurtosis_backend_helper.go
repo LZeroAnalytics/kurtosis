@@ -48,6 +48,8 @@ func GetEngineServerBackend(
 	ctx context.Context, storageClass string,
 ) (backend_interface.KurtosisBackend, error) {
 	kubernetesConfig, err := rest.InClusterConfig()
+	kubernetesConfig.QPS = 50
+	kubernetesConfig.Burst = 100
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting in cluster Kubernetes config")
 	}
@@ -77,6 +79,9 @@ func GetApiContainerBackend(
 	productionMode bool,
 ) (backend_interface.KurtosisBackend, error) {
 	kubernetesConfig, err := rest.InClusterConfig()
+	kubernetesConfig.QPS = 50
+	kubernetesConfig.Burst = 100
+
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting in cluster Kubernetes config")
 	}
